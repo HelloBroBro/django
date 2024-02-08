@@ -89,7 +89,7 @@ class TestUtilsText(SimpleTestCase):
 
         # Make a best effort to shorten to the desired length, but requesting
         # a length shorter than the ellipsis shouldn't break
-        self.assertEqual("…", text.Truncator("asdf").chars(0))
+        self.assertEqual("...", text.Truncator("asdf").chars(1, truncate="..."))
         # lazy strings are handled correctly
         self.assertEqual(
             text.Truncator(lazystr("The quick brown fox")).chars(10), "The quick…"
@@ -111,7 +111,7 @@ class TestUtilsText(SimpleTestCase):
             truncator.chars(46, html=True),
         )
         self.assertEqual(
-            '<p id="par"><strong><em>The quick brown fox jumped over the lazy dog.</em>'
+            '<p id="par"><strong><em>The quick brown fox jumped over the lazy dog…</em>'
             "</strong></p>",
             truncator.chars(45, html=True),
         )
@@ -120,9 +120,11 @@ class TestUtilsText(SimpleTestCase):
             truncator.chars(10, html=True),
         )
         self.assertEqual(
-            "…",
+            '<p id="par"><strong><em>…</em></strong></p>',
             truncator.chars(1, html=True),
         )
+        self.assertEqual("", truncator.chars(0, html=True))
+        self.assertEqual("", truncator.chars(-1, html=True))
         self.assertEqual(
             '<p id="par"><strong><em>The qu....</em></strong></p>',
             truncator.chars(10, "....", html=True),
@@ -140,18 +142,16 @@ class TestUtilsText(SimpleTestCase):
         bigger_len = text.Truncator.MAX_LENGTH_HTML + 1
         valid_html = "<p>Joel is a slug</p>"  # 14 chars
         perf_test_values = [
-            ("</a" + "\t" * (max_len - 6) + "//>", None),
-            ("</p" + "\t" * bigger_len + "//>", "</p" + "\t" * 6 + "…"),
-            ("&" * bigger_len, "&" * 9 + "…"),
-            ("_X<<<<<<<<<<<>", None),
+            ("</a" + "\t" * (max_len - 6) + "//>", "</a>"),
+            ("</p" + "\t" * bigger_len + "//>", "</p>"),
+            ("&" * bigger_len, ""),
+            ("_X<<<<<<<<<<<>", "_X&lt;&lt;&lt;&lt;&lt;&lt;&lt;…"),
             (valid_html * bigger_len, "<p>Joel is a…</p>"),  # 10 chars
         ]
         for value, expected in perf_test_values:
             with self.subTest(value=value):
                 truncator = text.Truncator(value)
-                self.assertEqual(
-                    expected if expected else value, truncator.chars(10, html=True)
-                )
+                self.assertEqual(expected, truncator.chars(10, html=True))
 
     def test_truncate_chars_html_with_newline_inside_tag(self):
         truncator = text.Truncator(
@@ -179,7 +179,7 @@ class TestUtilsText(SimpleTestCase):
             "<br>The <hr/>quick <em>brown…</em>", truncator.chars(16, html=True)
         )
         self.assertEqual("<br>The <hr/>q…", truncator.chars(6, html=True))
-        self.assertEqual("<br>The …", truncator.chars(5, html=True))
+        self.assertEqual("<br>The <hr/>…", truncator.chars(5, html=True))
         self.assertEqual("<br>The…", truncator.chars(4, html=True))
         self.assertEqual("<br>Th…", truncator.chars(3, html=True))
 
@@ -188,11 +188,19 @@ class TestUtilsText(SimpleTestCase):
             "<i>Buenos d&iacute;as! &#x00bf;C&oacute;mo est&aacute;?</i>"
         )
         self.assertEqual(
-            "<i>Buenos d&iacute;as! &#x00bf;C&oacute;mo…</i>",
+            "<i>Buenos días! ¿Cómo está?</i>",
             truncator.chars(40, html=True),
         )
+        self.assertEqual(
+            "<i>Buenos días…</i>",
+            truncator.chars(12, html=True),
+        )
+        self.assertEqual(
+            "<i>Buenos días! ¿Cómo está…</i>",
+            truncator.chars(24, html=True),
+        )
         truncator = text.Truncator("<p>I &lt;3 python, what about you?</p>")
-        self.assertEqual("<p>I &lt;3 python,…</p>", truncator.chars(16, html=True))
+        self.assertEqual("<p>I &lt;3 python, wh…</p>", truncator.chars(16, html=True))
 
     def test_truncate_words(self):
         truncator = text.Truncator("The quick brown fox jumped over the lazy dog.")
@@ -206,6 +214,8 @@ class TestUtilsText(SimpleTestCase):
             lazystr("The quick brown fox jumped over the lazy dog.")
         )
         self.assertEqual("The quick brown fox…", truncator.words(4))
+        self.assertEqual("", truncator.words(0))
+        self.assertEqual("", truncator.words(-1))
 
     def test_truncate_html_words(self):
         truncator = text.Truncator(
@@ -238,7 +248,7 @@ class TestUtilsText(SimpleTestCase):
             "<p>The  quick \t brown fox jumped over the lazy dog.</p>"
         )
         self.assertEqual(
-            "<p>The  quick \t brown fox…</p>",
+            "<p>The quick brown fox…</p>",
             truncator.words(4, html=True),
         )
 
@@ -273,7 +283,7 @@ class TestUtilsText(SimpleTestCase):
             "<i>Buenos d&iacute;as! &#x00bf;C&oacute;mo est&aacute;?</i>"
         )
         self.assertEqual(
-            "<i>Buenos d&iacute;as! &#x00bf;C&oacute;mo…</i>",
+            "<i>Buenos días! ¿Cómo…</i>",
             truncator.words(3, html=True),
         )
         truncator = text.Truncator("<p>I &lt;3 python, what about you?</p>")
@@ -288,19 +298,17 @@ class TestUtilsText(SimpleTestCase):
         bigger_len = text.Truncator.MAX_LENGTH_HTML + 1
         valid_html = "<p>Joel is a slug</p>"  # 4 words
         perf_test_values = [
-            ("</a" + "\t" * (max_len - 6) + "//>", None),
-            ("</p" + "\t" * bigger_len + "//>", "</p" + "\t" * (max_len - 3) + "…"),
-            ("&" * max_len, None),  # no change
-            ("&" * bigger_len, "&" * max_len + "…"),
-            ("_X<<<<<<<<<<<>", None),
+            ("</a" + "\t" * (max_len - 6) + "//>", "</a>"),
+            ("</p" + "\t" * bigger_len + "//>", "</p>"),
+            ("&" * max_len, ""),
+            ("&" * bigger_len, ""),
+            ("_X<<<<<<<<<<<>", "_X&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&gt;"),
             (valid_html * bigger_len, valid_html * 12 + "<p>Joel is…</p>"),  # 50 words
         ]
         for value, expected in perf_test_values:
             with self.subTest(value=value):
                 truncator = text.Truncator(value)
-                self.assertEqual(
-                    expected if expected else value, truncator.words(50, html=True)
-                )
+                self.assertEqual(expected, truncator.words(50, html=True))
 
     def test_wrap(self):
         digits = "1234 67 9"
