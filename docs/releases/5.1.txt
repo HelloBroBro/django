@@ -210,7 +210,9 @@ Error Reporting
 File Storage
 ~~~~~~~~~~~~
 
-* ...
+* The :attr:`~django.core.files.storage.FileSystemStorage.allow_overwrite`
+  parameter of :class:`~django.core.files.storage.FileSystemStorage` allows
+  saving new files over existing ones.
 
 File Uploads
 ~~~~~~~~~~~~
@@ -361,7 +363,10 @@ Utilities
 Validators
 ~~~~~~~~~~
 
-* ...
+* The new :class:`~django.core.validators.DomainNameValidator` validates domain
+  names, including internationalized domain names. The new
+  :func:`~django.core.validators.validate_domain_name` function returns an
+  instance of :class:`~django.core.validators.DomainNameValidator`.
 
 .. _backwards-incompatible-5.1:
 
@@ -414,6 +419,15 @@ Miscellaneous
   a ``<footer>`` tag instead of a ``<div>``, and also moved below the
   ``<div id="main">`` element.
 
+* In order to improve accessibility, the expandable widget used for
+  :attr:`ModelAdmin.fieldsets <django.contrib.admin.ModelAdmin.fieldsets>` and
+  :attr:`InlineModelAdmin.fieldsets <django.contrib.admin.InlineModelAdmin>`,
+  when the fieldset has a name and use the ``collapse`` class, now includes
+  ``<details>`` and ``<summary>`` elements.
+
+* The JavaScript file ``collapse.js`` is removed since it is no longer needed
+  in the Django admin site.
+
 * :meth:`.SimpleTestCase.assertURLEqual` and
   :meth:`~django.test.SimpleTestCase.assertInHTML` now add ``": "`` to the
   ``msg_prefix``. This is consistent with the behavior of other assertions.
@@ -431,6 +445,11 @@ Miscellaneous
 * :class:`~django.db.models.FileField` now raises a
   :class:`~django.core.exceptions.FieldError` when saving a file without a
   ``name``.
+
+* ``ImageField.update_dimension_fields(force=True)`` is no longer called after
+  saving the image to storage. If your storage backend resizes images, the
+  ``width_field`` and ``height_field`` will not match the width and height of
+  the image.
 
 .. _deprecated-features-5.1:
 
@@ -466,6 +485,14 @@ Miscellaneous
 
 * The ``check`` keyword argument of ``CheckConstraint`` is deprecated in favor
   of ``condition``.
+
+* The undocumented ``OS_OPEN_FLAGS`` property of
+  :class:`~django.core.files.storage.FileSystemStorage` is deprecated. To allow
+  overwriting files in storage, set the new
+  :attr:`~django.core.files.storage.FileSystemStorage.allow_overwrite` option
+  to ``True`` instead.
+* The ``get_cache_name()`` method of ``FieldCacheMixin`` is deprecated in favor
+  of the ``cache_name`` cached property.
 
 Features removed in 5.1
 =======================
